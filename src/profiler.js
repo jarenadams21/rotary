@@ -1,21 +1,32 @@
 // src/profiler.js
 
 class Profiler {
-    constructor() {
-      this.logs = [];
-      this.maxLogs = 1000;
+    constructor(refinementService) {
+        this.logs = [];
+        this.reasoningLogs = [];
+        this.refinementService = refinementService;
     }
-  
-    log(operation, details) {
-      if (this.logs.length >= this.maxLogs) {
-        this.logs.shift(); // Remove oldest log
-      }
-      this.logs.push({ timestamp: new Date(), operation, details });
+
+    log(operation) {
+        this.logs.push({ operation, timestamp: new Date() });
     }
-  
+
+    refineExecution(operation) {
+        this.reasoningLogs.push(`Refining execution of ${operation}`);
+        this.refinementService.refineBasedOnFrequency(operation);
+    }
+
     getLogs() {
-      return this.logs;
+        return this.logs;
     }
-  }
-  
-  module.exports = Profiler;
+
+    getReasoningLogs() {
+        return this.reasoningLogs;
+    }
+
+    discardReasoningLogs() {
+        this.reasoningLogs = [];
+    }
+}
+
+module.exports = Profiler;

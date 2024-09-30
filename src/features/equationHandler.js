@@ -4,8 +4,8 @@ class EquationHandler {
     constructor() {}
   
     parseEquation(equation) {
-      // Implement a parser that can handle equations
-      // For demonstration, we'll use eval (Note: eval should be avoided in production)
+      // Implement a parser that can 
+      // ;; handle custom userequations
       return eval(equation);
     }
   
