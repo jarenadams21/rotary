@@ -1,3 +1,5 @@
+// src/parser.js
+
 class Parser {
   constructor(lexer) {
     this.lexer = lexer;
@@ -23,176 +25,39 @@ class Parser {
   statement() {
     this.log(`Handling statement, current token: ${this.currentToken.value}`);
 
-    if (this.currentToken.value === 'let') {
-        return this._handleLetDeclaration();
-    }
-
-    if (this.currentToken.value === 'routine') {
-        return this._handleRoutineDeclaration();
-    }
-
-    if (this.currentToken.value === 'for') {
-        return this._handleForLoop();
-    }
-
-    if (this.currentToken.type === 'IDENTIFIER') {
-        const identifier = this.currentToken.value;
-        this.currentToken = this.lexer.getNextToken(); // Skip the identifier
-
-        if (this.currentToken.value === '=') {
-            this.currentToken = this.lexer.getNextToken(); // Skip '='
-            const value = this.expression();  // Parse the right-hand side value
-            return { type: 'AssignmentExpression', name: identifier, value };
-        }
-    }
-
-    return this.expression();
-}
-
-_handleForLoop() {
-  this.log(`Handling for loop`);
-  this.currentToken = this.lexer.getNextToken(); // Skip 'for'
-
-  if (this.currentToken.value !== '<') {
-      throw new Error(`Expected "<" to start for loop condition, got: ${this.currentToken.value}`);
-  }
-  this.currentToken = this.lexer.getNextToken(); // Skip '<'
-
-  // Parse the initializer (e.g., let i = 0;)
-  const initializer = this.statement();
-
-  // Expect a semicolon after the initializer
-  if (this.currentToken.value !== ';') {
-      throw new Error(`Expected ";" after initializer, got: ${this.currentToken.value}`);
-  }
-  this.currentToken = this.lexer.getNextToken(); // Skip ';'
-
-  // Parse the condition (e.g., i < 50)
-  const condition = this.expression();
-
-  // Expect a semicolon after the condition
-  if (this.currentToken.value !== ';') {
-      throw new Error(`Expected ";" after condition, got: ${this.currentToken.value}`);
-  }
-  this.currentToken = this.lexer.getNextToken(); // Skip ';'
-
-  // Parse the increment (e.g., i*)
-  const increment = this.statement();
-
-  // Expect the closing '>'
-  if (this.currentToken.value !== '>') {
-      throw new Error(`Expected ">" to close for loop condition, got: ${this.currentToken.value}`);
-  }
-  this.currentToken = this.lexer.getNextToken(); // Skip '>'
-
-  // Parse the body of the loop
-  if (this.currentToken.value !== '^') {
-      throw new Error(`Expected "^" to start for loop body, got: ${this.currentToken.value}`);
-  }
-  this.currentToken = this.lexer.getNextToken(); // Skip '^'
-
-  const body = [];
-  while (this.currentToken.value !== '^') {
-      body.push(this.statement());
-  }
-  this.currentToken = this.lexer.getNextToken(); // Skip closing '^'
-
-  return { type: 'ForLoop', initializer, condition, increment, body };
-}
-
-expression() {
-  this.log(`Evaluating expression for token: ${this.currentToken.value}`);
-  let left = this.term();
-
-  // Check for relational operators like <, >, <=, >=
-  while (this.currentToken.value === '+' || this.currentToken.value === '-' ||
-         this.currentToken.value === '<' || this.currentToken.value === '>' ||
-         this.currentToken.value === '<=' || this.currentToken.value === '>=') {
-      const operator = this.currentToken.value;
-      this.currentToken = this.lexer.getNextToken();
-      const right = this.term();
-      left = { type: 'BinaryExpression', operator, left, right };
-  }
-
-  return left;
-}
-
-  term() {
-    this.log(`Evaluating term for token: ${this.currentToken.value}`);
-    let left = this.factor();
-
-    while (this.currentToken.value === '*' || this.currentToken.value === '/') {
-      const operator = this.currentToken.value;
-      this.currentToken = this.lexer.getNextToken();
-      const right = this.factor();
-      left = { type: 'BinaryExpression', operator, left, right };
-    }
-
-    return left;
-  }
-  factor() {
-    this.log(`Evaluating factor for token: ${this.currentToken.value}`);
-
-    if (this.currentToken.type === 'NUMBER') {
-        return this._handleNumber();
+    if (this.currentToken.type === 'KEYWORD') {
+      switch (this.currentToken.value) {
+        case 'let':
+          return this._handleLetDeclaration();
+        case 'routine':
+          return this._handleRoutineDeclaration();
+        case 'return':
+          return this._handleReturnStatement();
+        case 'for':
+          return this._handleForLoop();
+        default:
+          throw new Error(`Unknown keyword: ${this.currentToken.value}`);
+      }
     }
 
     if (this.currentToken.type === 'IDENTIFIER') {
-        const identifier = this.currentToken.value;
-        this.currentToken = this.lexer.getNextToken(); // Move past the identifier
-
-        // Handle post-increment (i*) as shorthand for incrementing by 1
-        if (this.currentToken.value === '*') {
-            this.currentToken = this.lexer.getNextToken(); // Move past '*'
-            return {
-                type: 'AssignmentExpression',
-                name: identifier,
-                value: {
-                    type: 'BinaryExpression',
-                    operator: '+', // Treat * as shorthand for i = i + 1
-                    left: { type: 'Identifier', name: identifier },
-                    right: { type: 'NumberLiteral', value: 1 }
-                }
-            };
-        }
-
-        // Handle function calls and regular identifiers
-        if (this.currentToken.value === '[') {
-            this.log(`Function call detected for: ${identifier}`);
-            const args = [];
-            this.currentToken = this.lexer.getNextToken(); // Skip '['
-
-            // Parse the arguments inside the square brackets
-            while (this.currentToken.value !== ']') {
-                args.push(this.expression());
-                if (this.currentToken.value === ',') {
-                    this.currentToken = this.lexer.getNextToken(); // Skip comma
-                }
-            }
-            this.currentToken = this.lexer.getNextToken(); // Skip ']'
-
-            return { type: 'FunctionCall', name: identifier, arguments: args };
-        }
-
-        return { type: 'Identifier', name: identifier };
+      return this._handleAssignmentOrFunctionCall();
     }
 
-    throw new Error(`Invalid expression starting with token: ${this.currentToken.value}`);
-}
+    throw new Error(`Invalid statement starting with token: ${this.currentToken.value}`);
+  }
 
   _handleLetDeclaration() {
     this.log(`Handling let declaration`);
-    this.currentToken = this.lexer.getNextToken();
+    this.currentToken = this.lexer.getNextToken(); // Skip 'let'
     const name = this.currentToken.value;
-    this.log(`Let variable name: ${name}`);
-    this.currentToken = this.lexer.getNextToken();
+    this.currentToken = this.lexer.getNextToken(); // Skip variable name
 
-    if (this.currentToken.value !== '=') {
+    if (this.currentToken.type !== 'OPERATOR' || this.currentToken.value !== '=') {
       throw new Error(`Expected "=" after let variable declaration, got: ${this.currentToken.value}`);
     }
-    this.currentToken = this.lexer.getNextToken();
+    this.currentToken = this.lexer.getNextToken(); // Skip '='
     const value = this.expression();
-    this.log(`Let declaration value: ${JSON.stringify(value)}`);
     return { type: 'VariableDeclaration', name, value };
   }
 
@@ -200,66 +65,213 @@ expression() {
     this.log(`Handling routine declaration`);
     this.currentToken = this.lexer.getNextToken(); // Skip 'routine'
     const name = this.currentToken.value;
-    this.currentToken = this.lexer.getNextToken(); // Skip the routine name
+    this.currentToken = this.lexer.getNextToken(); // Skip routine name
 
     const params = [];
-    if (this.currentToken.value === '[') {
-        this.currentToken = this.lexer.getNextToken(); // Skip '['
-        while (this.currentToken.value !== ']') {
-            params.push(this.currentToken.value);
-            this.currentToken = this.lexer.getNextToken(); // Skip parameter
-            if (this.currentToken.value === ',') {
-                this.currentToken = this.lexer.getNextToken(); // Skip comma
-            }
+    if (this.currentToken.type === 'ARG_START') {
+      this.currentToken = this.lexer.getNextToken(); // Skip '['
+      while (this.currentToken.type !== 'ARG_END') {
+        params.push(this.currentToken.value);
+        this.currentToken = this.lexer.getNextToken(); // Skip parameter or comma
+        if (this.currentToken.type === 'COMMA') {
+          this.currentToken = this.lexer.getNextToken(); // Skip comma
         }
-        this.currentToken = this.lexer.getNextToken(); // Skip ']'
+      }
+      this.currentToken = this.lexer.getNextToken(); // Skip ']'
     }
 
-    if (this.currentToken.value !== '^') {
-        throw new Error(`Expected "^" to start routine block, got: ${this.currentToken.value}`);
+    if (this.currentToken.type !== 'BLOCK_DELIMITER') {
+      throw new Error(`Expected "^" to start routine block, got: ${this.currentToken.value}`);
     }
     this.currentToken = this.lexer.getNextToken(); // Skip '^'
 
     const body = [];
-    while (this.currentToken.value !== '^') {
-        body.push(this.statement());
+    while (this.currentToken.type !== 'BLOCK_DELIMITER') {
+      body.push(this.statement());
     }
     this.currentToken = this.lexer.getNextToken(); // Skip closing '^'
 
     return { type: 'RoutineDeclaration', name, params, body };
-}
-
-  _handleIdentifierOrFunctionCall() {
-    this.log(`Handling identifier or function call for: ${this.currentToken.value}`);
-    const name = this.currentToken.value;
-    this.currentToken = this.lexer.getNextToken();
-
-    if (this.currentToken.value === '[') {
-      this.log(`Function call detected for: ${name}`);
-      this.currentToken = this.lexer.getNextToken();
-      const args = [];
-      while (this.currentToken.value !== ']') {
-        args.push(this.expression());
-        if (this.currentToken.value === ',') {
-          this.currentToken = this.lexer.getNextToken();
-        }
-      }
-      this.currentToken = this.lexer.getNextToken();
-      return { type: 'FunctionCall', name, arguments: args };
-    }
-
-    return { type: 'Identifier', name };
   }
 
-  _handleNumber() {
-    this.log(`Handling number: ${this.currentToken.value}`);
-    const value = parseFloat(this.currentToken.value);
-    this.currentToken = this.lexer.getNextToken();
-    return { type: 'NumberLiteral', value };
+  _handleReturnStatement() {
+    this.log(`Handling return statement`);
+    this.currentToken = this.lexer.getNextToken(); // Skip 'return'
+    const value = this.expression();
+    return { type: 'ReturnStatement', value };
+  }
+
+  _handleForLoop() {
+    this.log(`Handling for loop`);
+    this.currentToken = this.lexer.getNextToken(); // Skip 'for'
+
+    if (this.currentToken.type !== 'OPERATOR' || this.currentToken.value !== '<') {
+      throw new Error(`Expected "<" to start for loop condition, got: ${this.currentToken.value}`);
+    }
+    this.currentToken = this.lexer.getNextToken(); // Skip '<'
+
+    // Parse the initializer (e.g., let i = 0;)
+    const initializer = this.statement();
+
+    // Expect a semicolon after the initializer
+    if (this.currentToken.type !== 'DELIMITER' || this.currentToken.value !== ';') {
+      throw new Error(`Expected ";" after initializer, got: ${this.currentToken.value}`);
+    }
+    this.currentToken = this.lexer.getNextToken(); // Skip ';'
+
+    // Parse the condition (e.g., i < 50)
+    const condition = this.expression();
+
+    // Expect a semicolon after the condition
+    if (this.currentToken.type !== 'DELIMITER' || this.currentToken.value !== ';') {
+      throw new Error(`Expected ";" after condition, got: ${this.currentToken.value}`);
+    }
+    this.currentToken = this.lexer.getNextToken(); // Skip ';'
+
+    // Parse the increment (e.g., i*)
+    const increment = this._handleIncrement();
+
+    // Expect the closing '>'
+    if (this.currentToken.type !== 'OPERATOR' || this.currentToken.value !== '>') {
+      throw new Error(`Expected ">" to close for loop condition, got: ${this.currentToken.value}`);
+    }
+    this.currentToken = this.lexer.getNextToken(); // Skip '>'
+
+    // Parse the body of the loop
+    if (this.currentToken.type !== 'BLOCK_DELIMITER') {
+      throw new Error(`Expected "^" to start for loop body, got: ${this.currentToken.value}`);
+    }
+    this.currentToken = this.lexer.getNextToken(); // Skip '^'
+
+    const body = [];
+    while (this.currentToken.type !== 'BLOCK_DELIMITER') {
+      body.push(this.statement());
+    }
+    this.currentToken = this.lexer.getNextToken(); // Skip closing '^'
+
+    return { type: 'ForLoop', initializer, condition, increment, body };
+  }
+
+  _handleIncrement() {
+    if (this.currentToken.type === 'IDENTIFIER') {
+      const identifier = this.currentToken.value;
+      this.currentToken = this.lexer.getNextToken(); // Skip identifier
+
+      if (this.currentToken.type === 'OPERATOR' && this.currentToken.value === '*') {
+        this.currentToken = this.lexer.getNextToken(); // Skip '*'
+        return {
+          type: 'AssignmentExpression',
+          name: identifier,
+          value: {
+            type: 'BinaryExpression',
+            operator: '+',
+            left: { type: 'Identifier', name: identifier },
+            right: { type: 'NumberLiteral', value: 1 },
+          },
+        };
+      }
+    }
+
+    throw new Error(`Invalid increment expression in for loop`);
+  }
+
+  _handleAssignmentOrFunctionCall() {
+    const identifier = this.currentToken.value;
+    this.currentToken = this.lexer.getNextToken(); // Skip identifier
+
+    if (this.currentToken.type === 'OPERATOR' && this.currentToken.value === '=') {
+      this.currentToken = this.lexer.getNextToken(); // Skip '='
+      const value = this.expression();
+      return { type: 'AssignmentExpression', name: identifier, value };
+    }
+
+    if (this.currentToken.type === 'OPERATOR' && this.currentToken.value === '*') {
+      this.currentToken = this.lexer.getNextToken(); // Skip '*'
+      return {
+        type: 'AssignmentExpression',
+        name: identifier,
+        value: {
+          type: 'BinaryExpression',
+          operator: '+',
+          left: { type: 'Identifier', name: identifier },
+          right: { type: 'NumberLiteral', value: 1 },
+        },
+      };
+    }
+
+    if (this.currentToken.type === 'ARG_START') {
+      return this._handleFunctionCall(identifier);
+    }
+
+    throw new Error(`Invalid assignment or function call starting with: ${identifier}`);
+  }
+
+  _handleFunctionCall(name) {
+    const args = [];
+    this.currentToken = this.lexer.getNextToken(); // Skip '['
+
+    while (this.currentToken.type !== 'ARG_END') {
+      args.push(this.expression());
+      if (this.currentToken.type === 'COMMA') {
+        this.currentToken = this.lexer.getNextToken(); // Skip comma
+      }
+    }
+    this.currentToken = this.lexer.getNextToken(); // Skip ']'
+
+    return { type: 'FunctionCall', name, arguments: args };
+  }
+
+  expression() {
+    this.log(`Evaluating expression for token: ${this.currentToken.value}`);
+    let left = this.term();
+
+    while (this.currentToken.type === 'OPERATOR' && ['+', '-', '<', '>', '<=', '>='].includes(this.currentToken.value)) {
+      const operator = this.currentToken.value;
+      this.currentToken = this.lexer.getNextToken(); // Skip operator
+      const right = this.term();
+      left = { type: 'BinaryExpression', operator, left, right };
+    }
+
+    return left;
+  }
+
+  term() {
+    let left = this.factor();
+
+    while (this.currentToken.type === 'OPERATOR' && ['*', '/'].includes(this.currentToken.value)) {
+      const operator = this.currentToken.value;
+      this.currentToken = this.lexer.getNextToken(); // Skip operator
+      const right = this.factor();
+      left = { type: 'BinaryExpression', operator, left, right };
+    }
+
+    return left;
+  }
+
+  factor() {
+    if (this.currentToken.type === 'NUMBER') {
+      const value = this.currentToken.value;
+      this.currentToken = this.lexer.getNextToken(); // Skip number
+      return { type: 'NumberLiteral', value };
+    }
+
+    if (this.currentToken.type === 'IDENTIFIER') {
+      const identifier = this.currentToken.value;
+      this.currentToken = this.lexer.getNextToken(); // Skip identifier
+
+      if (this.currentToken.type === 'ARG_START') {
+        return this._handleFunctionCall(identifier);
+      }
+
+      return { type: 'Identifier', name: identifier };
+    }
+
+    throw new Error(`Invalid expression starting with token: ${this.currentToken.value}`);
   }
 
   log(message) {
-    console.log(`[Parser Log] ${message}`);
+    // Uncomment the following line to enable parser logs
+    // console.log(`[Parser Log] ${message}`);
   }
 }
 

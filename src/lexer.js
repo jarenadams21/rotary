@@ -1,14 +1,19 @@
+// src/lexer.js
+
 class Lexer {
   constructor(input) {
     this.input = input;
     this.position = 0;
     this.currentChar = input[0];
-    this.tokenFrequency = {};
   }
 
   advance() {
     this.position++;
     this.currentChar = this.position < this.input.length ? this.input[this.position] : null;
+  }
+
+  peek() {
+    return this.position + 1 < this.input.length ? this.input[this.position + 1] : null;
   }
 
   getNextToken() {
@@ -26,22 +31,45 @@ class Lexer {
         return this._identifierOrKeyword();
       }
 
-      if (this.currentChar === '^') {
+      // Multi-character operators
+      if (this.currentChar === '<' && this.peek() === '=') {
         this.advance();
-        return { type: 'BLOCK_DELIMITER', value: '^' };
+        this.advance();
+        return { type: 'OPERATOR', value: '<=' };
       }
 
-      if (this.currentChar === '[') {
+      if (this.currentChar === '>' && this.peek() === '=') {
         this.advance();
-        return { type: 'ARG_START', value: '[' };
+        this.advance();
+        return { type: 'OPERATOR', value: '>=' };
       }
 
-      if (this.currentChar === ']') {
+      // Single-character operators and delimiters
+      const singleCharTokens = {
+        '+': 'OPERATOR',
+        '-': 'OPERATOR',
+        '*': 'OPERATOR',
+        '/': 'OPERATOR',
+        '<': 'OPERATOR',
+        '>': 'OPERATOR',
+        '=': 'OPERATOR',
+        ';': 'DELIMITER',
+        '^': 'BLOCK_DELIMITER',
+        '[': 'ARG_START',
+        ']': 'ARG_END',
+        ',': 'COMMA',
+        '(': 'LPAREN',
+        ')': 'RPAREN',
+      };
+
+      if (singleCharTokens[this.currentChar]) {
+        const char = this.currentChar;
+        const type = singleCharTokens[char];
         this.advance();
-        return { type: 'ARG_END', value: ']' };
+        return { type, value: char };
       }
 
-      return this._symbol();
+      throw new Error(`Unrecognized character: ${this.currentChar}`);
     }
     return { type: 'EOF', value: null };
   }
@@ -52,7 +80,7 @@ class Lexer {
       number += this.currentChar;
       this.advance();
     }
-    return { type: 'NUMBER', value: number };
+    return { type: 'NUMBER', value: parseFloat(number) };
   }
 
   _identifierOrKeyword() {
@@ -62,17 +90,12 @@ class Lexer {
       this.advance();
     }
 
-    if (identifier === 'routine') {
+    const keywords = ['routine', 'let', 'return', 'for'];
+    if (keywords.includes(identifier)) {
       return { type: 'KEYWORD', value: identifier };
     }
 
     return { type: 'IDENTIFIER', value: identifier };
-  }
-
-  _symbol() {
-    const symbol = this.currentChar;
-    this.advance();
-    return { type: 'SYMBOL', value: symbol };
   }
 
   skipWhitespace() {
