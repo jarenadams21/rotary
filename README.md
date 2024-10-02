@@ -21,3 +21,7 @@ from ( _blank_ = _value1_ to _value2_ )
 or allow : from ( _blank_ = _value1_ to _value2_ : _rule_)
 
 controlled index lookaheads, and optional loop update rule passing.
+
+THEN,
+
+Test performance against V8.
