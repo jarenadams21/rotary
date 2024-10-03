@@ -25,3 +25,14 @@ controlled index lookaheads, and optional loop update rule passing.
 THEN,
 
 Test performance against V8.
+
+This should be allowed: 
+
+     tableName && const params = {
+        TableName: tableName,
+        Item: {
+          userId: username,
+          email: email,
+          biography: '',
+        },
+      };
