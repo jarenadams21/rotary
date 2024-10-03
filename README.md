@@ -36,3 +36,4 @@ This should be allowed:
           biography: '',
         },
       };
+for a given string | undefined 'tableName'
